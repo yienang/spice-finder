@@ -26,17 +26,47 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # CORS(app) opens the API to requests from other origins (like your
+    # React dev server on a different port). Without this, the browser's
+    # "same-origin policy" would silently block fetch() calls from React
+    # to Flask, and you'd see a confusing CORS error in the console.
+    # For a hackathon, allowing all origins is fine. In a real production
+    # app you'd lock this down to your actual frontend's domain.
     CORS(app)
 
+    # Connects the SQLAlchemy `db` object (defined in models.py) to this
+    # specific Flask app instance, using the SQLALCHEMY_DATABASE_URI from
+    # our Config.
     db.init_app(app)
 
     @app.route("/api/health")
     def health():
+        """
+        A trivial endpoint that just confirms the server is up and can
+        respond with JSON. Useful for us to check the backend is wired
+        correctly before we build anything that depends on it.
+        """
         return jsonify({"status": "ok", "message": "Spice Finder API is running"})
 
     @app.route("/api/restaurants")
     def list_restaurants():
+        """
+        Returns every restaurant, with its blended spice score, as JSON.
+        This is what your React map view will fetch to draw pins + the
+        heatmap overlay.
+        """
+        # Restaurant.query.all() is SQLAlchemy's way of saying "give me
+        # every row in the restaurants table, as a list of Restaurant
+        # objects." Under the hood this runs `SELECT * FROM restaurants`
+        # — you get to think in Python objects instead of writing SQL.
         restaurants = Restaurant.query.all()
+
+        # jsonify() can only turn plain Python data (dicts, lists,
+        # strings, numbers) into JSON — it has no idea how to convert a
+        # custom Restaurant object on its own. So we build a plain dict
+        # for each restaurant ourselves first. This step — turning a
+        # database object into a plain dict/JSON-friendly shape — is
+        # called "serialization," and you'll do it in every GET route.
         results = [
             {
                 "id": r.id,
@@ -51,9 +81,10 @@ def create_app():
         ]
         return jsonify(results)
 
+    
     @app.route("/api/ratings", methods=["POST"])
     def create_rating():
-        data = request.json
+        data = request.json  # the dict the frontend sent, e.g. {"nickname": "...", "restaurant_id": 1, "spice_rating": 5, "note": "..."}
 
         spice_rating = data.get("spice_rating")
         restaurant_id = data.get("restaurant_id")
@@ -99,7 +130,7 @@ def create_app():
             "latitude": restaurant.latitude,
             "longitude": restaurant.longitude,
             "spice_score": compute_blended_score(restaurant),
-            "rating_count": len(restaurant.ratings),
+            "rating_count": len(restaurant.ratings),            
             "ratings": [
                 {
                     "spice_rating": r.spice_rating,
@@ -110,7 +141,6 @@ def create_app():
                 for r in restaurant.ratings
             ],
         })
-
     @app.route("/api/leaderboard")
     def leaderboard():
         users = User.query.all()
@@ -118,32 +148,40 @@ def create_app():
         results = []
         for user in users:
             if not user.ratings:
-                continue
+                continue  # skip people who haven't rated anything yet
 
+            # TODO: compute rating_count (how many ratings this user has)
             rating_count = len(user.ratings)
 
+            # TODO: compute average_spice (average of user.ratings' spice_rating values)
             total = 0
-            for r in user.ratings:
-                total += r.spice_rating
-            average_spice = total / rating_count
+            for i in user.ratings:
+                total += i.spice_rating
+            average_spice = total/rating_count
 
             results.append({
                 "nickname": user.nickname,
-                "rating_count": rating_count,
-                "average_spice": average_spice,
+                "rating_count": rating_count,      # fill in
+                "average_spice": average_spice,     # fill in
             })
 
+        # TODO: sort `results` so the leaderboard is actually ordered —
+        # think about whether "most active" or "spiciest tolerance" matters
+        # more for a brag wall, and sort by that field. Hint: list.sort(key=..., reverse=True)
         results.sort(key=lambda x: x["rating_count"], reverse=True)
 
         return jsonify(results)
-
+    
     return app
-
 
 app = create_app()
 
 if __name__ == "__main__":
     with app.app_context():
+        # Creates any database tables that don't exist yet, based on
+        # whatever model classes have been defined. Right now there are
+        # none (models.py is empty), so this does nothing yet — but it
+        # will matter as soon as we add Restaurant/Rating/User models.
         db.create_all()
 
     app.run(debug=True, port=5000)

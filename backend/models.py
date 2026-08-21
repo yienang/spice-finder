@@ -1,12 +1,18 @@
 """
 Database models will live here.
+
+We're leaving this mostly empty for now — designing Restaurant, Rating,
+and User as SQLAlchemy models is the next task, and it's a core learning
+piece, so we'll build it together rather than have it generated wholesale.
+
+For now this just creates the `db` object that both app.py and the
+(future) model classes need to share.
 """
 
-from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 db = SQLAlchemy()
-
 
 class User(db.Model):
     __tablename__ = "users"

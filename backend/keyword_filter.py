@@ -28,9 +28,15 @@ def review_mentions_spice(review_text):
     """
     Returns True if any spice-related keyword appears anywhere in this
     one review's text (case-insensitive), False otherwise.
+
+    TODO: write this. Hint: review_text.lower() gives you a lowercase
+    copy of the text to search through, so "SPICY" and "spicy" both
+    match the same keyword. Loop over SPICE_KEYWORDS and check whether
+    each one is `in` the lowercased text.
     """
     lowercase_review = review_text.lower()
     for keyword in SPICE_KEYWORDS:
         if keyword in lowercase_review:
             return True
     return False
+        
