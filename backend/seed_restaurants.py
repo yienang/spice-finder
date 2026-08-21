@@ -31,10 +31,22 @@ CUISINE_QUERIES = [
     "Indian restaurant in Brisbane",
     "Mexican restaurant in Brisbane",
     "Sichuan restaurant in Brisbane",
+    "Hunan restaurant in Brisbane",
     "Korean restaurant in Brisbane",
     "Malaysian restaurant in Brisbane",
     "Vietnamese restaurant in Brisbane",
+    "Sri Lankan restaurant in Brisbane",
+    "Nepalese restaurant in Brisbane",
+    "Ethiopian restaurant in Brisbane",
+    "Peruvian restaurant in Brisbane",
+    "Filipino restaurant in Brisbane",
+    "Caribbean jerk restaurant in Brisbane",
+    "Middle Eastern restaurant in Brisbane",
+    "Sichuan hot pot in Brisbane",
+    "curry house in Brisbane",
+    "chicken wings restaurant in Brisbane",
     "spicy food restaurant in Brisbane",
+    "spicy noodles in Brisbane",
 ]
 
 with app.app_context():
@@ -50,7 +62,12 @@ with app.app_context():
     # queries found it.
     places_by_id = {}
     for query in CUISINE_QUERIES:
-        results = search_text_restaurants(query, BRISBANE_LAT, BRISBANE_LNG, SEARCH_RADIUS_METERS)
+        # Google's Text Search (New) caps pageSize at 20 per request — this
+        # was defaulting to 10, so we were leaving half of each query's
+        # available results on the table. 20 cuisine queries x up to 20
+        # results each (before dedup) gets us a lot more coverage than the
+        # old 8 queries x 10.
+        results = search_text_restaurants(query, BRISBANE_LAT, BRISBANE_LNG, SEARCH_RADIUS_METERS, max_results=20)
         print(f"  '{query}' -> {len(results)} results")
         for place in results:
             places_by_id[place["google_place_id"]] = place
