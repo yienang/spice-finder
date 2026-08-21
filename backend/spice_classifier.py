@@ -57,13 +57,26 @@ Reviews:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw_text = response.content[0].text
+    raw_text = response.content[0].text.strip()
+
+    # Even when told "respond with ONLY JSON," models sometimes wrap
+    # the answer in a markdown code fence like ```json ... ``` — which
+    # breaks json.loads() since that's not valid JSON on its own. This
+    # strips a leading/trailing fence if one is present, so we're
+    # parsing just the JSON itself either way.
+    if raw_text.startswith("```"):
+        raw_text = raw_text.strip("`")
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+        raw_text = raw_text.strip()
 
     try:
         result = json.loads(raw_text)
         return result.get("spice_score")
     except (json.JSONDecodeError, IndexError):
-        # Claude didn't return valid JSON for some reason — better to
-        # treat this restaurant as "unknown" than crash the whole
-        # pipeline over one bad response.
+        # Claude didn't return valid JSON for some reason — print what
+        # it actually said so this is debuggable instead of a silent
+        # mystery, then treat this restaurant as "unknown" rather than
+        # crash the whole pipeline over one bad response.
+        print(f"  [!] Could not parse Claude's response as JSON. Raw response was:\n{raw_text!r}")
         return None

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import RestaurantMap from './components/RestaurantMap'
 import './App.css'
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
       <p className="status-line">
         Backend status: <strong>{apiStatus}</strong>
       </p>
+      <RestaurantMap />
     </div>
   )
 }

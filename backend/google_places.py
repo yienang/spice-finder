@@ -64,6 +64,52 @@ def search_nearby_restaurants(latitude, longitude, radius_meters=20000, max_resu
     return places
 
 
+def search_text_restaurants(text_query, latitude, longitude, radius_meters=20000, max_results=10):
+    """
+    Calls Google's Text Search (New) endpoint — unlike search_nearby_
+    restaurants, this searches by a text query (e.g. "Thai restaurant
+    in Brisbane") rather than just "anything classified as a restaurant
+    near this point." This matters for us specifically: plain nearby
+    search ranks by general prominence, which surfaces big well-known
+    venues (hotels, McDonald's, tourist spots) over smaller places that
+    actually specialize in a spicy cuisine. A targeted text query gets
+    us restaurants actually relevant to what we're looking for.
+    """
+    url = f"{PLACES_BASE_URL}:searchText"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": Config.GOOGLE_PLACES_API_KEY,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
+    }
+    body = {
+        "textQuery": text_query,
+        "locationBias": {
+            "circle": {
+                "center": {"latitude": latitude, "longitude": longitude},
+                "radius": radius_meters,
+            }
+        },
+        "pageSize": max_results,
+    }
+
+    response = requests.post(url, headers=headers, json=body)
+    if not response.ok:
+        print("Google Places error response:", response.text)
+    response.raise_for_status()
+    data = response.json()
+
+    places = []
+    for place in data.get("places", []):
+        places.append({
+            "google_place_id": place["id"],
+            "name": place["displayName"]["text"],
+            "address": place.get("formattedAddress", ""),
+            "latitude": place["location"]["latitude"],
+            "longitude": place["location"]["longitude"],
+        })
+    return places
+
+
 def get_place_reviews(google_place_id):
     """
     Fetches reviews for one restaurant (Google caps this at 5 reviews

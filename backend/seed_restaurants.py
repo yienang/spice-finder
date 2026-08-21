@@ -13,7 +13,7 @@ spice.
 
 from app import app
 from models import db, Restaurant
-from google_places import search_nearby_restaurants, get_place_reviews
+from google_places import search_text_restaurants, get_place_reviews
 from keyword_filter import review_mentions_spice
 from spice_classifier import classify_spice_level
 
@@ -22,12 +22,41 @@ BRISBANE_LAT = -27.4705
 BRISBANE_LNG = 153.0260
 SEARCH_RADIUS_METERS = 20000  # 20km — covers most of inner-to-mid Brisbane
 
+# Plain "restaurant near Brisbane" search ranks by general prominence,
+# which surfaces big well-known venues (hotels, McDonald's) over places
+# that actually specialize in spicy food. Searching by cuisine directly
+# gets us restaurants actually relevant to what this app is for.
+CUISINE_QUERIES = [
+    "Thai restaurant in Brisbane",
+    "Indian restaurant in Brisbane",
+    "Mexican restaurant in Brisbane",
+    "Sichuan restaurant in Brisbane",
+    "Korean restaurant in Brisbane",
+    "Malaysian restaurant in Brisbane",
+    "Vietnamese restaurant in Brisbane",
+    "spicy food restaurant in Brisbane",
+]
+
 with app.app_context():
     db.create_all()
 
-    print("Searching Google Places for restaurants near Brisbane...")
-    places = search_nearby_restaurants(BRISBANE_LAT, BRISBANE_LNG, SEARCH_RADIUS_METERS)
-    print(f"Found {len(places)} restaurants.")
+    print("Searching Google Places across multiple spicy cuisines...")
+    # Run one text search per cuisine, then dedupe by google_place_id —
+    # the same restaurant can easily show up in more than one query
+    # (e.g. a Thai place might also match "spicy food restaurant").
+    # A dict keyed by google_place_id is a simple way to dedupe: adding
+    # the same key twice just overwrites with the same value, so we end
+    # up with one entry per unique restaurant regardless of how many
+    # queries found it.
+    places_by_id = {}
+    for query in CUISINE_QUERIES:
+        results = search_text_restaurants(query, BRISBANE_LAT, BRISBANE_LNG, SEARCH_RADIUS_METERS)
+        print(f"  '{query}' -> {len(results)} results")
+        for place in results:
+            places_by_id[place["google_place_id"]] = place
+
+    places = list(places_by_id.values())
+    print(f"Found {len(places)} unique restaurants across all cuisine searches.")
 
     for place in places:
         # Skip restaurants we've already saved (matched by Google's own
