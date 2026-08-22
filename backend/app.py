@@ -157,6 +157,28 @@ def create_app():
 
         return jsonify(results)
 
+    @app.route("/api/ratings/recent")
+    def recent_ratings():
+        # Newest first, capped at 50 so this can't blow up once there
+        # are thousands of ratings — that's what order_by + limit does
+        # here, both at the database level rather than fetching
+        # everything and sorting/slicing in Python.
+        ratings = Rating.query.order_by(Rating.created_at.desc()).limit(50).all()
+
+        results = [
+            {
+                "id": r.id,
+                "spice_rating": r.spice_rating,
+                "note": r.note,
+                "created_at": r.created_at,
+                "nickname": r.user.nickname,
+                "restaurant_id": r.restaurant_id,
+                "restaurant_name": r.restaurant.name,
+            }
+            for r in ratings
+        ]
+        return jsonify(results)
+
     # Everything below /api/* falls through to here — this is what makes
     # visiting the site's plain URL (e.g. "/", or "/whatever-the-frontend-
     # thinks-the-path-is") return the React app's index.html instead of a
